@@ -18,7 +18,12 @@ const juce::Colour kTextMuted     { 0xff9ca3af };
 
 juce::Font makeJpFont(float size, bool bold = false)
 {
-    return juce::Font(juce::FontOptions("Hiragino Sans", size, bold ? juce::Font::bold : juce::Font::plain));
+#if JUCE_WINDOWS
+    static const char* const kJpFontName = "Yu Gothic UI";
+#else
+    static const char* const kJpFontName = "Hiragino Sans";
+#endif
+    return juce::Font(juce::FontOptions(kJpFontName, size, bold ? juce::Font::bold : juce::Font::plain));
 }
 
 juce::String formatMidiNoteName(int midiNote)

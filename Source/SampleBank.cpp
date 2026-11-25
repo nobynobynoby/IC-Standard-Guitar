@@ -89,8 +89,13 @@ namespace
 {
 juce::File getSettingsFile()
 {
-    return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-        .getChildFile("Application Support")
+    // macOS: ~/Library/Application Support/ICStandardGuitar
+    // Windows: %APPDATA%\ICStandardGuitar
+    auto base = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
+   #if JUCE_MAC
+    base = base.getChildFile("Application Support");
+   #endif
+    return base
         .getChildFile("ICStandardGuitar")
         .getChildFile("settings.xml");
 }
@@ -140,6 +145,16 @@ juce::File SampleBank::getDefaultSamplesDirectory()
     const auto home = juce::File::getSpecialLocation(juce::File::userHomeDirectory);
     const auto desktop = juce::File::getSpecialLocation(juce::File::userDesktopDirectory);
 
+   #if JUCE_WINDOWS
+    const auto documents = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
+    const std::array<juce::File, 5> candidates {{
+        music.getChildFile("UI_Standard_Guitar/Samples"),
+        documents.getChildFile("UI_Standard_Guitar/Samples"),
+        home.getChildFile("Downloads/UI_Standard_Guitar/Samples"),
+        desktop.getChildFile("UI_Standard_Guitar/Samples"),
+        juce::File("C:\\UI_Standard_Guitar\\Samples")
+    }};
+   #else
     const std::array<juce::File, 5> candidates {{
         music.getChildFile("Logic/UI_Standard_Guitar/Samples"),
         music.getChildFile("UI_Standard_Guitar/Samples"),
@@ -147,6 +162,7 @@ juce::File SampleBank::getDefaultSamplesDirectory()
         home.getChildFile("Downloads/UI_Standard_Guitar/Samples"),
         desktop.getChildFile("UI_Standard_Guitar/Samples")
     }};
+   #endif
 
     for (const auto& candidate : candidates)
     {

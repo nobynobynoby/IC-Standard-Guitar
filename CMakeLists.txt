@@ -10,6 +10,11 @@ project(ICStandardGuitar VERSION 1.0.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(MSVC)
+    # Link the MSVC runtime statically so the distributed .exe/.vst3 run without the VC++ Redistributable
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 set(JUCE_DIR "" CACHE PATH "Path to local JUCE")
 if(NOT JUCE_DIR AND DEFINED ENV{JUCE_DIR})
     set(JUCE_DIR "$ENV{JUCE_DIR}")
@@ -30,11 +35,25 @@ if(NOT EXISTS "${JUCE_DIR}/CMakeLists.txt")
 endif()
 
 # Strip absolute local workspace/home paths from __FILE__ and debug metadata
-add_compile_options(
-    "-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=."
-    "-ffile-prefix-map=${JUCE_DIR}=JUCE"
-    "-ffile-prefix-map=$ENV{HOME}=~"
-)
+if(MSVC)
+    # Sources contain UTF-8 Japanese literals; force UTF-8 regardless of system code page (e.g. CP932)
+    add_compile_options(/utf-8)
+else()
+    add_compile_options(
+        "-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=."
+        "-ffile-prefix-map=${JUCE_DIR}=JUCE"
+        "-ffile-prefix-map=$ENV{HOME}=~"
+    )
+endif()
+
+if(APPLE)
+    set(IC_PLUGIN_FORMATS AU Standalone)
+    set(IC_COPY_AFTER_BUILD TRUE)
+else()
+    set(IC_PLUGIN_FORMATS VST3 Standalone)
+    # Copying into C:\Program Files\Common Files\VST3 needs admin rights; install manually instead
+    set(IC_COPY_AFTER_BUILD FALSE)
+endif()
 
 add_subdirectory("${JUCE_DIR}" "${CMAKE_BINARY_DIR}/JUCE")
 
@@ -64,14 +83,15 @@ juce_add_plugin(ICStandardGuitar
     BUNDLE_ID "com.instachordtools.icstandardguitar"
     PLUGIN_MANUFACTURER_CODE Icht
     PLUGIN_CODE Icsg
-    FORMATS AU Standalone
+    FORMATS ${IC_PLUGIN_FORMATS}
+    VST3_CATEGORIES Instrument Synth
     PRODUCT_NAME "IC Standard Guitar"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
     AU_MAIN_TYPE kAudioUnitType_MusicDevice
-    COPY_PLUGIN_AFTER_BUILD TRUE)
+    COPY_PLUGIN_AFTER_BUILD ${IC_COPY_AFTER_BUILD})
 
 target_sources(ICStandardGuitar PRIVATE
     Source/PluginProcessor.cpp
@@ -83,6 +103,12 @@ target_compile_definitions(ICStandardGuitar PUBLIC
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0)
+
+if(WIN32)
+    # Low-latency ASIO for the Standalone app. Uses the ASIO SDK headers bundled with JUCE
+    # (Steinberg ASIO SDK, dual-licensed: Steinberg ASIO License OR GPLv3 — used here under GPLv3).
+    target_compile_definitions(ICStandardGuitar PUBLIC JUCE_ASIO=1)
+endif()
 
 target_link_libraries(ICStandardGuitar
     PRIVATE
