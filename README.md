@@ -1,14 +1,15 @@
-# IC Standard Guitar
+# IC Standard Guitar（Windows 対応 Fork）
 
-インスタコード（InstaChord）を USB MIDI で Mac / Logic Pro に接続してリアルタイム演奏するために最適化された、オープンソースの Audio Unit (`.component`) および Standalone アプリケーションです（Apple Silicon / Intel Universal Binary 対応）。
+インスタコード（InstaChord）を USB MIDI で接続してリアルタイム演奏するために最適化された、オープンソースのギター音源プラグインです。
 
-**Windows 版**（VST3 / Standalone、ASIO 対応）もあります。手順は「[Windows 版](#windows-版)」を参照してください。
+- **Windows 10/11 (x64)**: VST3 プラグイン ＋ Standalone アプリ（ASIO / WASAPI 対応）
+- **macOS 12+**: Audio Unit (`.component`) ＋ Standalone アプリ（Apple Silicon / Intel Universal Binary）
 
 Unreal Instruments の **Standard Guitar**（各自で取得したローカルの FLAC サンプル）を `sforzando` を介さず直接読み込み、インスタコード特有のレイテンシー（発音の遅れ）やキーオフ時の唐突な音切れを解消します。
 
-> **免責・非公式表記**: 本ソフトウェアは個人開発による非公式プラグインであり、インスタコード（InstaChord / 株式会社KANTAN）および Unreal Instruments とは一切関係ありません。また、Standard Guitar の音声サンプルデータ（`.flac` 等）は本リポジトリおよび配布バイナリに一切同梱していません。
+> **Fork 版について**: 本リポジトリは [AraJiru40/IC-Standard-Guitar](https://github.com/AraJiru40/IC-Standard-Guitar)（v1.0.0、macOS 版）を Fork し、Windows 対応を加えた改変版です。元作者による公式版ではありません。変更点は README 末尾の「[改変内容](#改変内容)」にまとめています。
 
-> **Fork 版について**: 本リポジトリは [AraJiru40/IC-Standard-Guitar](https://github.com/AraJiru40/IC-Standard-Guitar)（v1.0.0）を Fork し、Windows 対応を加えた改変版です。元作者による公式版ではありません。Mac 版については元リポジトリも参照してください。変更点は README 末尾の「[改変内容](#改変内容)」にまとめています。
+> **免責・非公式表記**: 本ソフトウェアは個人開発による非公式プラグインであり、インスタコード（InstaChord / 株式会社KANTAN）および Unreal Instruments とは一切関係ありません。また、Standard Guitar の音声サンプルデータ（`.flac` 等）は本リポジトリおよび配布バイナリに一切同梱していません。
 
 ## 主な機能
 
@@ -25,12 +26,29 @@ Unreal Instruments の **Standard Guitar**（各自で取得したローカル�
 
 ---
 
-## インストール手順（配布 ZIP から使う場合）
+## インストール手順（Windows）
+
+1. **Standard Guitar 本体の準備**
+   - Unreal Instruments 公式から `UI_Standard_Guitar` をダウンロードして解凍し、`ミュージック\UI_Standard_Guitar`（`%USERPROFILE%\Music\UI_Standard_Guitar`）に置きます。次の場所も自動で探します：`ドキュメント` / `ダウンロード` / `デスクトップ` 直下の `UI_Standard_Guitar`、`C:\UI_Standard_Guitar`。
+   - 自動で見つからない場合は、プラグイン画面右上の **「フォルダ変更...」** から指定してください。設定は `%APPDATA%\ICStandardGuitar\settings.xml` に保存されます。
+2. **VST3 の配置（DAW で使う場合）**
+   - GitHub Releases から `IC-Standard-Guitar-v1.0.0-Windows-x64.zip` をダウンロードして解凍します。
+   - `IC Standard Guitar.vst3` フォルダを丸ごと `C:\Program Files\Common Files\VST3\` にコピーします（管理者権限が必要です）。
+   - DAW でプラグインを再スキャンし、**InstaChordTools ＞ IC Standard Guitar** を選択します。
+3. **Standalone アプリ（DAW なしで使う場合）**
+   - `IC Standard Guitar.exe` を好きな場所に置いて起動します。インストールは不要です。
+   - コード署名をしていないため、初回は SmartScreen の警告（「Windows によって PC が保護されました」）が出ることがあります。「詳細情報」→「実行」で起動できます。
+   - 画面左上の **Options** → **Audio/MIDI Settings** で、オーディオデバイス（低遅延なら **ASIO**）と MIDI 入力（**InstaChord**）を選びます。
+   - 設定はウィンドウを **×** で閉じたときに `%APPDATA%\IC Standard Guitar\IC Standard Guitar.settings` に保存されます。タスクマネージャーなどで強制終了すると保存されません。
+
+> **注意**: Windows の MIDI デバイスは同時に 1 つのアプリしか開けません。Standalone と DAW で同時にインスタコードを使うことはできません。
+
+## インストール手順（macOS）
 
 1. **Standard Guitar 本体の準備**
    - Unreal Instruments 公式から `UI_Standard_Guitar` をダウンロードし、解凍したフォルダを `~/Music/Logic/UI_Standard_Guitar`（または `~/Music/UI_Standard_Guitar` / `~/Downloads/UI_Standard_Guitar` 等）に配置します。
 2. **プラグインの配置**
-   - GitHub Releases から `IC-Standard-Guitar-v1.0.0-macOS-Universal.zip` をダウンロードして解凍します。
+   - 元リポジトリの [Releases](https://github.com/AraJiru40/IC-Standard-Guitar/releases) から `IC-Standard-Guitar-v1.0.0-macOS-Universal.zip` をダウンロードして解凍します（本 Fork では macOS 版のバイナリは配布していません）。
    - `IC Standard Guitar.component` を以下のフォルダへコピーします：
      - `~/Library/Audio/Plug-Ins/Components/`（または `/Library/Audio/Plug-Ins/Components/`）
 3. **macOS Gatekeeper の隔離属性を解除（初回のみ）**
@@ -48,28 +66,9 @@ Unreal Instruments の **Standard Guitar**（各自で取得したローカル�
 
 ---
 
-## Windows 版
+## ソースからのビルド（開発者向け）
 
-Windows 10/11 (x64) 用の **VST3** プラグインと **Standalone アプリ**（ASIO / WASAPI 対応）です。機能は Mac 版と同じです。
-
-### インストール手順（配布 ZIP から使う場合）
-
-1. **Standard Guitar 本体の準備**
-   - `UI_Standard_Guitar` を解凍し、`ミュージック\UI_Standard_Guitar`（`%USERPROFILE%\Music\UI_Standard_Guitar`）に置きます。次の場所も自動で探します：`ドキュメント` / `ダウンロード` / `デスクトップ` 直下の `UI_Standard_Guitar`、`C:\UI_Standard_Guitar`。
-   - 自動で見つからない場合は、プラグイン画面右上の **「フォルダ変更...」** から指定してください。設定は `%APPDATA%\ICStandardGuitar\settings.xml` に保存されます。
-2. **VST3 の配置（DAW で使う場合）**
-   - GitHub Releases から `IC-Standard-Guitar-v1.0.0-Windows-x64.zip` をダウンロードして解凍します。
-   - `IC Standard Guitar.vst3` フォルダを丸ごと `C:\Program Files\Common Files\VST3\` にコピーします（管理者権限が必要です）。
-   - DAW でプラグインを再スキャンし、**InstaChordTools ＞ IC Standard Guitar** を選択します。
-3. **Standalone アプリ（DAW なしで使う場合）**
-   - `IC Standard Guitar.exe` を好きな場所に置いて起動します。インストールは不要です。
-   - コード署名をしていないため、初回は SmartScreen の警告（「Windows によって PC が保護されました」）が出ることがあります。「詳細情報」→「実行」で起動できます。
-   - 画面左上の **Options** → **Audio/MIDI Settings** で、オーディオデバイス（低遅延なら **ASIO**）と MIDI 入力（**InstaChord**）を選びます。
-   - 設定はウィンドウを **×** で閉じたときに `%APPDATA%\IC Standard Guitar\IC Standard Guitar.settings` に保存されます。タスクマネージャーなどで強制終了すると保存されません。
-
-> **注意**: Windows の MIDI デバイスは同時に 1 つのアプリしか開けません。Standalone と DAW で同時にインスタコードを使うことはできません。
-
-### ソースからのビルド（開発者向け）
+### Windows
 
 - Visual Studio 2022（Build Tools 可）の「C++ によるデスクトップ開発」、CMake 3.22+、JUCE 8
 
@@ -89,17 +88,15 @@ pwsh Scripts/package-release.ps1
 
 `dist\IC-Standard-Guitar-v1.0.0-Windows-x64.zip` が生成されます（VST3・Standalone・README・LICENSE を同梱）。
 
----
+### macOS
 
-## ソースからのビルド手順（開発者向け）
-
-### 必要環境
+#### 必要環境
 
 - macOS 12.0+（Universal Binary: `arm64` + `x86_64`）
 - CMake 3.22+ / Xcode Command Line Tools
 - ローカル JUCE 8（リポジトリ内の `./JUCE`、`$HOME/JUCE`、または `-DJUCE_DIR=/path/to/JUCE` で指定）
 
-### ビルド・パッケージング
+#### ビルド・パッケージング
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release -DJUCE_DIR=/path/to/JUCE
@@ -116,7 +113,7 @@ cmake --build build --config Release -j8
 
 `dist/IC-Standard-Guitar-v1.0.0-macOS-Universal.zip` が生成されます。
 
-### テスト・検証
+#### テスト・検証
 
 ```bash
 ctest --test-dir build --output-on-failure
