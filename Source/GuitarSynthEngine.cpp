@@ -74,11 +74,17 @@ void GuitarSynthEngine::reset()
 
     reverb.reset();
     sustainPedalDown = false;
+    cc80Received = false;
+    lastCc80Value = 127;
     pitchBendSemitones = 0.0f;
     pitchBendMultiplier = 1.0;
     lastNoteOnTimeSamples = -1000000;
     lastReleaseNoiseTimeSamples = -1000000;
     activeVoiceCount.store(0, std::memory_order_relaxed);
+    telemetryCc80Received.store(false, std::memory_order_relaxed);
+    telemetryLastCc80Value.store(-1, std::memory_order_relaxed);
+    telemetryCc80MuteActive.store(false, std::memory_order_relaxed);
+    telemetryLastArticulation.store(static_cast<int>(Articulation::SusDown), std::memory_order_relaxed);
 }
 
 void GuitarSynthEngine::updateMasterToneEq(float toneEq)
@@ -204,13 +210,26 @@ void GuitarSynthEngine::triggerNoteOn(int midiChannel,
     lastNoteOnMidi = midiNote;
     lastStrumWasUp = upstroke;
 
-    // 2. Determine Articulation
+    // 2. Determine Articulation (with InstaChord CC#80 root-button mute integration)
+    const bool cc80RootHeld = !cc80Received
+        ? true
+        : (params.cc80Invert ? (lastCc80Value < 64) : (lastCc80Value >= 64));
+
     Articulation art = Articulation::SusDown;
-    const auto mode = static_cast<ArticulationMode>(juce::jlimit(0, 5, params.articulationMode));
+    const auto mode = static_cast<ArticulationMode>(juce::jlimit(0, 7, params.articulationMode));
     switch (mode)
     {
         case ArticulationMode::AutoStrum:
-            art = upstroke ? Articulation::SusUp : Articulation::SusDown;
+        case ArticulationMode::Cc80FingerMute:
+            art = cc80RootHeld
+                ? (upstroke ? Articulation::SusUp : Articulation::SusDown)
+                : Articulation::FingerMute;
+            telemetryLastStrumUp.store(upstroke, std::memory_order_relaxed);
+            break;
+        case ArticulationMode::Cc80PalmMute:
+            art = cc80RootHeld
+                ? (upstroke ? Articulation::SusUp : Articulation::SusDown)
+                : (upstroke ? Articulation::MuteUp : Articulation::MuteDown);
             telemetryLastStrumUp.store(upstroke, std::memory_order_relaxed);
             break;
         case ArticulationMode::SusDown:
@@ -239,6 +258,7 @@ void GuitarSynthEngine::triggerNoteOn(int midiChannel,
     }
 
     telemetryLastMidiNote.store(midiNote, std::memory_order_relaxed);
+    telemetryLastArticulation.store(static_cast<int>(art), std::memory_order_relaxed);
 
     // 3. Lookup Sample & Pitch Ratio
     double pitchRatio = 1.0;
@@ -440,6 +460,15 @@ void GuitarSynthEngine::handleMidiMessage(const juce::MidiMessage& msg,
                 releasePedalVoices(bank, params, eventSampleTime);
             sustainPedalDown = nowDown;
         }
+        else if (cc == 80) // InstaChord Root Button Hold / Mute Control
+        {
+            cc80Received = true;
+            lastCc80Value = val;
+            telemetryCc80Received.store(true, std::memory_order_relaxed);
+            telemetryLastCc80Value.store(val, std::memory_order_relaxed);
+            const bool rootHeld = params.cc80Invert ? (val < 64) : (val >= 64);
+            telemetryCc80MuteActive.store(!rootHeld, std::memory_order_relaxed);
+        }
         else if (cc == 120 || cc == 123) // All Sound Off / All Notes Off
         {
             sustainPedalDown = false;
@@ -483,6 +512,16 @@ void GuitarSynthEngine::renderBlock(juce::AudioBuffer<float>& outputBuffer,
 
     updateMasterToneEq(params.toneEq);
     updateReverbParams(params.ambience);
+
+    if (cc80Received)
+    {
+        const bool rootHeld = params.cc80Invert ? (lastCc80Value < 64) : (lastCc80Value >= 64);
+        telemetryCc80MuteActive.store(!rootHeld, std::memory_order_relaxed);
+    }
+    else
+    {
+        telemetryCc80MuteActive.store(false, std::memory_order_relaxed);
+    }
 
     SampleBank::ReaderGuard guard(sampleBank);
     const BankData* bank = guard.get();

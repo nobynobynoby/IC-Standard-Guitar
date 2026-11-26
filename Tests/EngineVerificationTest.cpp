@@ -312,7 +312,7 @@ int main()
         engine.renderBlock(block, upMidi, params);
         const bool afterDesc = engine.wasLastStrumUp();
 
-        std::cout << "[5/5] Auto strum detector: ascending->up=" << afterAsc
+        std::cout << "[5/6] Auto strum detector: ascending->up=" << afterAsc
                   << ", descending->up=" << afterDesc << "\n";
 
         if (afterAsc || !afterDesc)
@@ -320,6 +320,113 @@ int main()
             std::cerr << "FAIL: Auto strum direction detector mismatch\n";
             return 1;
         }
+    }
+
+    // 6. InstaChord CC#80 Root-Button Mute & Polarity Verification
+    {
+        engine.reset();
+        engine.prepare(sr, 256);
+        icguitar::EngineParams params;
+        params.articulationMode = static_cast<int>(icguitar::ArticulationMode::AutoStrum);
+        params.cc80Invert = false;
+
+        juce::AudioBuffer<float> block(2, 256);
+
+        // (a) Default unreceived state -> Sustain
+        if (engine.hasReceivedCc80() || engine.isCc80MuteActive())
+        {
+            std::cerr << "FAIL: Expected CC#80 unreceived and unmuted after reset\n";
+            return 1;
+        }
+        {
+            juce::MidiBuffer midi;
+            midi.addEvent(juce::MidiMessage::noteOn(1, 55, static_cast<juce::uint8>(100)), 0);
+            engine.renderBlock(block, midi, params);
+            if (engine.getLastTriggeredArticulation() != icguitar::Articulation::SusDown)
+            {
+                std::cerr << "FAIL: Expected SusDown when CC#80 not yet received\n";
+                return 1;
+            }
+        }
+
+        // (b) CC#80 = 0 (Root button OFF) in AutoStrum / Cc80FingerMute -> FingerMute
+        {
+            juce::MidiBuffer midi;
+            midi.addEvent(juce::MidiMessage::controllerEvent(1, 80, 0), 0);
+            midi.addEvent(juce::MidiMessage::noteOn(1, 55, static_cast<juce::uint8>(100)), 10);
+            engine.renderBlock(block, midi, params);
+
+            if (!engine.hasReceivedCc80() || engine.getLastCc80Value() != 0 || !engine.isCc80MuteActive())
+            {
+                std::cerr << "FAIL: CC#80=0 telemetry state mismatch\n";
+                return 1;
+            }
+            if (engine.getLastTriggeredArticulation() != icguitar::Articulation::FingerMute)
+            {
+                std::cerr << "FAIL: Expected FingerMute on CC#80=0 in AutoStrum\n";
+                return 1;
+            }
+        }
+
+        // (c) CC#80 = 0 in Cc80PalmMute -> MuteDown
+        params.articulationMode = static_cast<int>(icguitar::ArticulationMode::Cc80PalmMute);
+        {
+            // Advance >250ms so next note is treated as fresh downstroke (outside 220ms repeat window)
+            juce::MidiBuffer empty;
+            for (int k = 0; k < 50; ++k)
+                engine.renderBlock(block, empty, params);
+
+            juce::MidiBuffer midi;
+            midi.addEvent(juce::MidiMessage::noteOn(1, 55, static_cast<juce::uint8>(100)), 0);
+            engine.renderBlock(block, midi, params);
+
+            if (engine.getLastTriggeredArticulation() != icguitar::Articulation::MuteDown)
+            {
+                std::cerr << "FAIL: Expected MuteDown on CC#80=0 in Cc80PalmMute\n";
+                return 1;
+            }
+        }
+
+        // (d) CC#80 = 127 (Root button ON) -> SusDown
+        {
+            juce::MidiBuffer empty;
+            for (int k = 0; k < 50; ++k)
+                engine.renderBlock(block, empty, params);
+
+            juce::MidiBuffer midi;
+            midi.addEvent(juce::MidiMessage::controllerEvent(1, 80, 127), 0);
+            midi.addEvent(juce::MidiMessage::noteOn(1, 55, static_cast<juce::uint8>(100)), 10);
+            engine.renderBlock(block, midi, params);
+
+            if (engine.getLastCc80Value() != 127 || engine.isCc80MuteActive())
+            {
+                std::cerr << "FAIL: CC#80=127 telemetry state mismatch\n";
+                return 1;
+            }
+            if (engine.getLastTriggeredArticulation() != icguitar::Articulation::SusDown)
+            {
+                std::cerr << "FAIL: Expected SusDown on CC#80=127\n";
+                return 1;
+            }
+        }
+
+        // (e) Polarity inversion (cc80Invert = true): CC#80 = 127 -> Mute
+        params.cc80Invert = true;
+        params.articulationMode = static_cast<int>(icguitar::ArticulationMode::Cc80FingerMute);
+        {
+            juce::MidiBuffer midi;
+            midi.addEvent(juce::MidiMessage::noteOn(1, 55, static_cast<juce::uint8>(100)), 0);
+            engine.renderBlock(block, midi, params);
+
+            if (!engine.isCc80MuteActive() ||
+                engine.getLastTriggeredArticulation() != icguitar::Articulation::FingerMute)
+            {
+                std::cerr << "FAIL: Expected FingerMute when cc80Invert=true and CC#80=127\n";
+                return 1;
+            }
+        }
+
+        std::cout << "[6/6] CC#80 root-button mute & polarity inversion verified.\n";
     }
 
     std::cout << "ALL VERIFICATION CHECKS PASSED.\n";

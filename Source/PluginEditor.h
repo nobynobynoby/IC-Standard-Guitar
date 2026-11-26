@@ -53,6 +53,8 @@ private:
     juce::ComboBox articulationBox;
     juce::Label articulationLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> articulationAttachment;
+    juce::TextButton cc80InvertButton { juce::CharPointer_UTF8("⇄ CC#80極性反転") };
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> cc80InvertAttachment;
 
     KnobControl attackTrimKnob;
     KnobControl releaseTimeKnob;

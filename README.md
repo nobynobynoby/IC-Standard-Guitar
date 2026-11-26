@@ -7,7 +7,7 @@
 
 Unreal Instruments の **Standard Guitar**（各自で取得したローカルの FLAC サンプル）を `sforzando` を介さず直接読み込み、インスタコード特有のレイテンシー（発音の遅れ）やキーオフ時の唐突な音切れを解消します。
 
-> **Fork 版について**: 本リポジトリは [AraJiru40/IC-Standard-Guitar](https://github.com/AraJiru40/IC-Standard-Guitar)（v1.0.0、macOS 版）を Fork し、Windows 対応を加えた改変版です。元作者による公式版ではありません。変更点は README 末尾の「[改変内容](#改変内容)」にまとめています。
+> **Fork 版について**: 本リポジトリは [AraJiru40/IC-Standard-Guitar](https://github.com/AraJiru40/IC-Standard-Guitar)（macOS 版）を Fork し、Windows 対応を加えた改変版です。現在は元プロジェクトの v1.1.0 に追従しています。元作者による公式版ではありません。変更点は README 末尾の「[改変内容](#改変内容)」にまとめています。
 
 > **免責・非公式表記**: 本ソフトウェアは個人開発による非公式プラグインであり、インスタコード（InstaChord / 株式会社KANTAN）および Unreal Instruments とは一切関係ありません。また、Standard Guitar の音声サンプルデータ（`.flac` 等）は本リポジトリおよび配布バイナリに一切同梱していません。
 
@@ -21,8 +21,17 @@ Unreal Instruments の **Standard Guitar**（各自で取得したローカル�
   - コード解放時に全弦分のリリースノイズが同時に鳴るのを防ぐため、80ms のクールダウンで和音あたり最大 1 回のみ控えめに鳴らします。
 - **自動ストローク方向検出 (`Auto Strum`)**
   - 85ms 以内の連続ノートのピッチ進行からダウン／アップストロークを自動判定し、`Sus_Down` / `Sus_Up`（または `Mute_Down` / `Mute_Up`）を切り替えます。
+- **インスタコード CC#80 ルートボタン連動ミュート (`IC CC#80 Auto`)**
+  - インスタコードのルートボタン押下／解放で送出される `CC#80` に連動し、実音（`Sus_Down` / `Sus_Up`）とミュート音（`Finger Mute` または `Palm Mute`）をリアルタイムに切り替えます（極性反転ボタン・ヘッダーステータス表示付き）。
 - **同音クロスフェード**
   - 同じ音程が連打された際、既存のボイスを 8ms でクロスフェード・アウトさせ、途切れや不自然なクリックを防ぎます。
+
+## バージョニング規則
+
+- **現在バージョン**: `v1.1.0`
+- **機能追加（MINOR）**: `+0.1.0` ずつカウントアップ（例: `1.0.0` → `1.1.0` → `1.2.0`）
+- **不具合修正のみ（PATCH）**: `+0.0.1` ずつカウントアップ（例: `1.1.0` → `1.1.1`）
+- **本 Fork の Windows 版リリース**: 元プロジェクトと同じバージョン番号に `-win` を付けたタグで公開します（例: `v1.1.0-win`）。
 
 ---
 
@@ -32,7 +41,7 @@ Unreal Instruments の **Standard Guitar**（各自で取得したローカル�
    - Unreal Instruments 公式から `UI_Standard_Guitar` をダウンロードして解凍し、`ミュージック\UI_Standard_Guitar`（`%USERPROFILE%\Music\UI_Standard_Guitar`）に置きます。次の場所も自動で探します：`ドキュメント` / `ダウンロード` / `デスクトップ` 直下の `UI_Standard_Guitar`、`C:\UI_Standard_Guitar`。
    - 自動で見つからない場合は、プラグイン画面右上の **「フォルダ変更...」** から指定してください。設定は `%APPDATA%\ICStandardGuitar\settings.xml` に保存されます。
 2. **VST3 の配置（DAW で使う場合）**
-   - GitHub Releases から `IC-Standard-Guitar-v1.0.0-Windows-x64.zip` をダウンロードして解凍します。
+   - GitHub Releases から `IC-Standard-Guitar-v1.1.0-Windows-x64.zip` をダウンロードして解凍します。
    - `IC Standard Guitar.vst3` フォルダを丸ごと `C:\Program Files\Common Files\VST3\` にコピーします（管理者権限が必要です）。
    - DAW でプラグインを再スキャンし、**InstaChordTools ＞ IC Standard Guitar** を選択します。
 3. **Standalone アプリ（DAW なしで使う場合）**
@@ -48,7 +57,7 @@ Unreal Instruments の **Standard Guitar**（各自で取得したローカル�
 1. **Standard Guitar 本体の準備**
    - Unreal Instruments 公式から `UI_Standard_Guitar` をダウンロードし、解凍したフォルダを `~/Music/Logic/UI_Standard_Guitar`（または `~/Music/UI_Standard_Guitar` / `~/Downloads/UI_Standard_Guitar` 等）に配置します。
 2. **プラグインの配置**
-   - 元リポジトリの [Releases](https://github.com/AraJiru40/IC-Standard-Guitar/releases) から `IC-Standard-Guitar-v1.0.0-macOS-Universal.zip` をダウンロードして解凍します（本 Fork では macOS 版のバイナリは配布していません）。
+   - 元リポジトリの [Releases](https://github.com/AraJiru40/IC-Standard-Guitar/releases) から `IC-Standard-Guitar-v1.1.0-macOS-Universal.zip` をダウンロードして解凍します（本 Fork では macOS 版のバイナリは配布していません）。
    - `IC Standard Guitar.component` を以下のフォルダへコピーします：
      - `~/Library/Audio/Plug-Ins/Components/`（または `/Library/Audio/Plug-Ins/Components/`）
 3. **macOS Gatekeeper の隔離属性を解除（初回のみ）**
@@ -86,7 +95,7 @@ ctest --test-dir build -C Release --output-on-failure
 pwsh Scripts/package-release.ps1
 ```
 
-`dist\IC-Standard-Guitar-v1.0.0-Windows-x64.zip` が生成されます（VST3・Standalone・README・LICENSE を同梱）。
+`dist\IC-Standard-Guitar-v1.1.0-Windows-x64.zip` が生成されます（VST3・Standalone・README・LICENSE を同梱）。
 
 ### macOS
 
@@ -111,7 +120,7 @@ cmake --build build --config Release -j8
 ./Scripts/package-release.sh
 ```
 
-`dist/IC-Standard-Guitar-v1.0.0-macOS-Universal.zip` が生成されます。
+`dist/IC-Standard-Guitar-v1.1.0-macOS-Universal.zip` が生成されます。
 
 #### テスト・検証
 
@@ -138,7 +147,7 @@ auval -v aumu Icsg Icht
 
 ### 改変内容
 
-AGPL-3.0 第5条に基づき、元プロジェクト（[AraJiru40/IC-Standard-Guitar](https://github.com/AraJiru40/IC-Standard-Guitar) v1.0.0）からの改変内容を示します。詳細な差分は git の履歴を参照してください。
+AGPL-3.0 第5条に基づき、元プロジェクト（[AraJiru40/IC-Standard-Guitar](https://github.com/AraJiru40/IC-Standard-Guitar)）からの改変内容を示します。詳細な差分は git の履歴を参照してください。
 
 - **2026-11-25** Windows 対応
   - `CMakeLists.txt` — Windows で VST3 / Standalone をビルド、MSVC 用の `/utf-8` 指定、MSVC ランタイムの静的リンク、ASIO 対応（`JUCE_ASIO=1`）
@@ -146,6 +155,8 @@ AGPL-3.0 第5条に基づき、元プロジェクト（[AraJiru40/IC-Standard-Gu
   - `Source/SampleBank.cpp` — Windows 用の設定ファイルの保存先とサンプルフォルダの自動検出候補
   - `Scripts/package-release.ps1` — Windows 用の配布 ZIP 作成スクリプト（新規）
   - `README.md` — Windows 版の手順、Fork 版の表記、第三者コンポーネント、本節を追加
+- **2026-11-26** 元プロジェクトの v1.1.0 を取り込み
+  - `README.md` — v1.1.0 の変更と Windows 版の手順を統合
 
 ### 第三者コンポーネント
 

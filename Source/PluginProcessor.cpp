@@ -19,6 +19,7 @@ ICStandardGuitarProcessor::ICStandardGuitarProcessor()
     toneEqParam = apvts.getRawParameterValue("toneEq");
     ambienceParam = apvts.getRawParameterValue("ambience");
     outputGainParam = apvts.getRawParameterValue("outputGain");
+    cc80InvertParam = apvts.getRawParameterValue("cc80Invert");
 
     pendingRequests.reserve(16);
     scheduledAuditionEvents.reserve(64);
@@ -75,7 +76,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout ICStandardGuitarProcessor::c
             "Sustain Up",
             "Palm Mute",
             "Finger Mute",
-            "Velocity Switch"
+            "Velocity Switch",
+            "IC CC#80 Auto (Sus / Finger Mute)",
+            "IC CC#80 Auto (Sus / Palm Mute)"
         },
         0));
 
@@ -99,6 +102,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout ICStandardGuitarProcessor::c
         juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
         2.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID("cc80Invert", 1),
+        "CC#80 Polarity Invert",
+        false));
 
     return { params.begin(), params.end() };
 }
@@ -141,6 +149,7 @@ icguitar::EngineParams ICStandardGuitarProcessor::readParams() const noexcept
     p.toneEq = toneEqParam != nullptr ? toneEqParam->load() : 0.60f;
     p.ambience = ambienceParam != nullptr ? ambienceParam->load() : 0.18f;
     p.outputGainDb = outputGainParam != nullptr ? outputGainParam->load() : 2.0f;
+    p.cc80Invert = cc80InvertParam != nullptr ? (cc80InvertParam->load() >= 0.5f) : false;
 
     if (lastAuditionModeOverride >= 0)
         p.articulationMode = lastAuditionModeOverride;

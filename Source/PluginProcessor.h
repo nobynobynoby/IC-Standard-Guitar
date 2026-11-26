@@ -74,6 +74,7 @@ private:
     std::atomic<float>* toneEqParam = nullptr;
     std::atomic<float>* ambienceParam = nullptr;
     std::atomic<float>* outputGainParam = nullptr;
+    std::atomic<float>* cc80InvertParam = nullptr;
 
     mutable juce::CriticalSection pathLock;
     juce::String configuredSamplesPath;

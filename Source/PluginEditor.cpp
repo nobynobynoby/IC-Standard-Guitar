@@ -137,10 +137,17 @@ ICStandardGuitarEditor::ICStandardGuitarEditor(ICStandardGuitarProcessor& p)
     articulationBox.addItem(juce::String::fromUTF8("Palm Mute (自動D/Uミュート)"), 4);
     articulationBox.addItem(juce::String::fromUTF8("Finger Mute (カッティング)"), 5);
     articulationBox.addItem(juce::String::fromUTF8("Velocity Switch (弱:Mute / 強:Sus)"), 6);
+    articulationBox.addItem(juce::String::fromUTF8("IC CC#80 Auto (Sus / Finger Mute)"), 7);
+    articulationBox.addItem(juce::String::fromUTF8("IC CC#80 Auto (Sus / Palm Mute)"), 8);
     addAndMakeVisible(articulationBox);
 
     articulationAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         audioProcessor.getAPVTS(), "articulationMode", articulationBox);
+
+    cc80InvertButton.setClickingTogglesState(true);
+    addAndMakeVisible(cc80InvertButton);
+    cc80InvertAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.getAPVTS(), "cc80Invert", cc80InvertButton);
 
     // Rotary knobs
     setupKnob(attackTrimKnob, "attackTrim",
@@ -271,10 +278,17 @@ void ICStandardGuitarEditor::paint(juce::Graphics& g)
     g.setColour(kPanelBorder);
     g.drawRoundedRectangle(headerArea, 10.0f, 1.0f);
 
-    // Title & subtitle
+    // Title, version badge & subtitle
     g.setColour(kTextPrimary);
     g.setFont(makeJpFont(19.0f, true));
-    g.drawText("IC Standard Guitar", 30, 22, 260, 26, juce::Justification::centredLeft);
+    g.drawText("IC Standard Guitar", 30, 22, 185, 26, juce::Justification::centredLeft);
+
+    const juce::String verText = juce::String("v") + JucePlugin_VersionString;
+    g.setColour(kAccentGold.withAlpha(0.18f));
+    g.fillRoundedRectangle(216.0f, 26.0f, 54.0f, 19.0f, 5.0f);
+    g.setColour(kAccentGold);
+    g.setFont(makeJpFont(11.0f, true));
+    g.drawText(verText, 216, 26, 54, 19, juce::Justification::centred);
 
     g.setColour(kAccentGold);
     g.setFont(makeJpFont(11.5f, true));
@@ -313,11 +327,14 @@ void ICStandardGuitarEditor::paint(juce::Graphics& g)
     g.setFont(makeJpFont(11.5f, true));
     g.drawText(statusText, 300, 22, 254, 28, juce::Justification::centredLeft, true);
 
-    // Live MIDI & Strum badge
+    // Live MIDI, CC#80 & Strum badge
     const auto& eng = audioProcessor.getEngine();
     const bool lastUp = eng.wasLastStrumUp();
     const int activeVoices = eng.getActiveVoiceCount();
     const int lastNote = eng.getLastPlayedNote();
+    const bool cc80Recv = eng.hasReceivedCc80();
+    const int cc80Val = eng.getLastCc80Value();
+    const bool cc80Muted = eng.isCc80MuteActive();
 
     const juce::String strumText = (lastNote < 0)
         ? juce::String::fromUTF8("MIDI 待機中")
@@ -328,14 +345,38 @@ void ICStandardGuitarEditor::paint(juce::Graphics& g)
     g.fillRoundedRectangle(292.0f, 56.0f, 400.0f, 30.0f, 6.0f);
 
     g.setColour(strumColour);
-    g.setFont(makeJpFont(12.0f, true));
-    g.drawText(strumText, 304, 56, 130, 30, juce::Justification::centredLeft);
+    g.setFont(makeJpFont(11.5f, true));
+    g.drawText(strumText, 300, 56, 106, 30, juce::Justification::centredLeft);
+
+    juce::String cc80Text;
+    juce::Colour cc80Colour = kTextMuted;
+    if (!cc80Recv)
+    {
+        cc80Text = juce::String::fromUTF8("CC#80: 未受信(実音)");
+        cc80Colour = kTextMuted;
+    }
+    else if (cc80Muted)
+    {
+        cc80Text = juce::String::fromUTF8("CC#80: ミュートON (") + juce::String(cc80Val) + ")";
+        cc80Colour = kAccentGold;
+    }
+    else
+    {
+        cc80Text = juce::String::fromUTF8("CC#80: 実音ON (") + juce::String(cc80Val) + ")";
+        cc80Colour = kAccentGreen;
+    }
+
+    g.setColour(cc80Colour.withAlpha(0.16f));
+    g.fillRoundedRectangle(408.0f, 60.0f, 136.0f, 22.0f, 4.0f);
+    g.setColour(cc80Colour);
+    g.setFont(makeJpFont(10.5f, true));
+    g.drawText(cc80Text, 412, 60, 128, 22, juce::Justification::centred, true);
 
     g.setColour(kTextPrimary);
-    g.setFont(makeJpFont(11.5f, false));
-    g.drawText(juce::String::fromUTF8("発音中: ") + juce::String(activeVoices) + " voices   |   Note: "
+    g.setFont(makeJpFont(11.0f, false));
+    g.drawText(juce::String::fromUTF8("発音: ") + juce::String(activeVoices) + "  |  Note: "
                + formatMidiNoteName(lastNote),
-               442, 56, 240, 30, juce::Justification::centredRight);
+               546, 56, 138, 30, juce::Justification::centredRight);
 
     // Main control cards
     const auto topRowCard = juce::Rectangle<float>(16.0f, 110.0f, static_cast<float>(getWidth() - 32), 138.0f);
@@ -382,8 +423,9 @@ void ICStandardGuitarEditor::resized()
     // Row 2: Articulation selector (left) + 3 Tone/Ambience/Gain knobs (right)
     const int row2Y = 284;
     const int row2H = 104;
-    articulationLabel.setBounds(30, 294, 210, 20);
-    articulationBox.setBounds(30, 318, 220, 32);
+    articulationLabel.setBounds(30, 290, 210, 18);
+    articulationBox.setBounds(30, 312, 220, 30);
+    cc80InvertButton.setBounds(30, 350, 220, 28);
 
     const int rightStart = 266;
     const int rightColW = (getWidth() - rightStart - 24) / 3;

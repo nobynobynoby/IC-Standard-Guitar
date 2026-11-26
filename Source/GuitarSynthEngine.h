@@ -18,7 +18,9 @@ enum class ArticulationMode : int
     SusUp,
     PalmMute,
     FingerMute,
-    VelocitySwitch
+    VelocitySwitch,
+    Cc80FingerMute,
+    Cc80PalmMute
 };
 
 struct EngineParams
@@ -31,6 +33,7 @@ struct EngineParams
     float toneEq = 0.60f;            // 0..1 (pickup/body EQ character)
     float ambience = 0.18f;          // 0..1 (studio body room reverb)
     float outputGainDb = 2.0f;       // -12..+12 dB
+    bool cc80Invert = false;         // false: >=64 Sus / <64 Mute, true: <64 Sus / >=64 Mute
 };
 
 class GuitarSynthEngine
@@ -50,6 +53,13 @@ public:
     int getActiveVoiceCount() const noexcept { return activeVoiceCount.load(std::memory_order_relaxed); }
     bool wasLastStrumUp() const noexcept { return telemetryLastStrumUp.load(std::memory_order_relaxed); }
     int getLastPlayedNote() const noexcept { return telemetryLastMidiNote.load(std::memory_order_relaxed); }
+    bool hasReceivedCc80() const noexcept { return telemetryCc80Received.load(std::memory_order_relaxed); }
+    int getLastCc80Value() const noexcept { return telemetryLastCc80Value.load(std::memory_order_relaxed); }
+    bool isCc80MuteActive() const noexcept { return telemetryCc80MuteActive.load(std::memory_order_relaxed); }
+    Articulation getLastTriggeredArticulation() const noexcept
+    {
+        return static_cast<Articulation>(telemetryLastArticulation.load(std::memory_order_relaxed));
+    }
 
 private:
     struct Voice
@@ -145,6 +155,8 @@ private:
 
     // MIDI controller state
     bool sustainPedalDown = false;
+    bool cc80Received = false;
+    int lastCc80Value = 127;
     float pitchBendSemitones = 0.0f;
     double pitchBendMultiplier = 1.0;
 
@@ -160,6 +172,10 @@ private:
     std::atomic<int> activeVoiceCount { 0 };
     std::atomic<bool> telemetryLastStrumUp { false };
     std::atomic<int> telemetryLastMidiNote { -1 };
+    std::atomic<bool> telemetryCc80Received { false };
+    std::atomic<int> telemetryLastCc80Value { -1 };
+    std::atomic<bool> telemetryCc80MuteActive { false };
+    std::atomic<int> telemetryLastArticulation { static_cast<int>(Articulation::SusDown) };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GuitarSynthEngine)
 };
